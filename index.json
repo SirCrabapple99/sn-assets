@@ -1,0 +1,7 @@
+[
+  "exampleGame": {
+    "path": "exampleGame/",
+    "html": "example.html",
+    "cover": "example.png"
+  }
+]
