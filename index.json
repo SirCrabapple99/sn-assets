@@ -2,9 +2,9 @@
   "games": [
     {
       "title": "exampleGame",
-      "path": "exampleGame/",
-      "html": "example.html",
       "cover": "example.png",
+      "html": "example.html",
+      "path": "exampleGame/",
       "_SN_INFO": null
     }
   ],
