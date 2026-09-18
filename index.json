@@ -4,14 +4,14 @@
       "title": "exampleGame",
       "cover": "example.png",
       "html": "example.html",
-      "path": "./games/exampleGame/",
+      "path": "./exampleGame/",
       "_SN_INFO": null
     },
     {
       "title": "Cookie Clicker",
       "cover": "img/logo.png",
       "html": "index.html",
-      "path": "./games/cookieclicker/",
+      "path": "./cookieclicker/",
       "_SN_INFO": null
     }
   ],
