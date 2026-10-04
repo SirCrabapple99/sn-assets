@@ -1,17 +1,17 @@
 {
   "games": [
     {
-      "title": "exampleGame",
-      "cover": "example.png",
-      "html": "example.html",
-      "path": "./exampleGame/",
+      "title": "Balatro",
+      "cover": "cover.png",
+      "html": "index.html",
+      "path": "./balatro/",
       "_SN_INFO": null
     },
     {
       "title": "Cookie Clicker",
       "cover": "img/logo.png",
       "html": "index.html",
-      "path": "./cookieclicker/",
+      "path": "./cookie_clicker/",
       "_SN_INFO": null
     }
   ],
