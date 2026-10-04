@@ -97859,6 +97859,31 @@ function love.run()
 	--On the web love.errhand's blocking loop would freeze the whole tab, so report errors and keep the page alive
 	local web_err
 	local function handler(e) return tostring(e)..'\n'..debug.traceback() end
+
+	--SDL on the web never reports browser window size changes, so index.html writes the current size to winsize.txt
+	--in the virtual filesystem and we apply it here
+	local next_size_check, last_size_try = 0, nil
+	local function web_resize_check()
+		local t = love.timer.getTime()
+		if t < next_size_check then return end
+		next_size_check = t + 0.15
+		if not love.filesystem.getInfo('winsize.txt') then return end
+		local str = love.filesystem.read('winsize.txt')
+		if not str then return end
+		local w, h = str:match('(%d+),(%d+)')
+		w, h = tonumber(w), tonumber(h)
+		if not w or w < 100 or h < 100 then return end
+		local cw, ch = love.graphics.getDimensions()
+		if (w ~= cw or h ~= ch) and last_size_try ~= str then
+			last_size_try = str
+			local _, _, flags = love.window.getMode()
+			flags.fullscreen = false
+			love.window.updateMode(w, h, flags)
+			local nw, nh = love.graphics.getDimensions()
+			if love.resize then love.resize(nw, nh) end
+		end
+	end
+
 	return function()
 		if web_err then
 			love.event.pump()
@@ -97869,6 +97894,7 @@ function love.run()
 			love.graphics.present()
 			return
 		end
+		if G and G.CANVAS then pcall(web_resize_check) end
 		local ok, ret = xpcall(frame, handler)
 		if not ok then
 			web_err = ret
@@ -195794,4 +195820,4 @@ g	
 G©aOˆf:  -ÿöBÑ 
   '!5!!f9?şÿ™şş@9ş®
 6VOOşª6j   ØU    %5'"&54632×şG¹ş¥[9""""2TÊÊ""""  2 òãŒ   %4#"#"&533276632¢2)(L#36A20/=#36òOSBOSB  2 ‡ãê  +  4#"#"&5332766324#"#"&533276632¢2))K#36A20.=%36A2)(L#36A20/=#36POSBOSBÉOSBOSB  Wÿ«7Õ   4632&&#"W‰Ee,TF(°Uú•›/?*"'şÿşD  Wÿ«7Õ   4632&&#"!!W‰Ee,TF(°- şóUú•›/?*"'şÿ
-Oş  Wÿ«7Õ   4632&&#"!!3#W‰Ee,TF(VP: şäé ÉUú•›/?*"'lbO‚OÏ  WşŞıÑ 	  3#!WZÚ ú, şŞóş–OÍO  a  xÊ   3337#''7'aZ<işå‚†+Š}jTm+pIÊş `şÉ³t3wªr^3`®@şë  ÿ5DÊ '  '>765!"32667#"&&5463!#o%AX8#şÄcT:0+7''le1Q1x‘…H>eË<6QB;?K]1;1:9X,Q7b[Oş’Y–D"R  a  }Ê     3!#5!"&54632'254#"aZş˜´3C?85BA6EFEÊşçÊı…2E@AEEA@E+ZZZZ  # Å…E 5  7"&&54663"32667'7>32#52654&#"'õ>_58W/(<D408'p$q-LL+>_56W1(<C53,6o$p'4*%Å1U6:V1NA21=2/R/R8>1T79W1NB12<$?P/Q.3  2 šq     5!"&54632'2654&#"2hşÌ-==--==-    "OOşä=--==--=2    #ÿ '  "&5467#"&'532732654&'7!#Š‰>$HQ6?BI^PSe71	-­AC|ğ–4H!!ıWhucR<ePOIqMuA  a  ]k  %  3!4632#"'75'75!2654&#"aÂQOIQXL$ mR^pş˜ş)). HÊORTJT^V(4.QQ"4(Åı…]<4,0^V  2şÿ]Ê  &  '#"&54632667#'!#'2754&#"ÖZ1-p|xiÃC$‘§:p6¸'71?<DOşÿ.…zx‡×š)pOOşe*BµHN]UO_  3ÿËq   52654.5463"¯69/FG/hZ59/FF/i5Q@1/ROS^8YnQ@1,POU`9Zm    Ê   754633332553####"$.[ZHL$/[ZH¸´((Rş®¨´()ş†z¨  a  —ã   *  "&54632'2654&#"33.53##ˆ1<<1/?>0 ! şõh}Tiş‚822771382ü
+Oş  Wÿ«7Õ   4632&&#"!!3#W‰Ee,TF(VP: şäé ÉUú•›/?*"'lbO‚OÏ  WşŞıÑ 	  3#!WZÚ ú, şŞóş–OÍO  a  xÊ   3337#''7'aZ<işå‚†+Š}jTm+pIÊş `şÉ³t3wªr^3`®@şë  ÿ5DÊ '  '>765!"32667#"&&5463!
