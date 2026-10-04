@@ -2,7 +2,7 @@
   "games": [
     {
       "title": "Balatro",
-      "cover": "cover.webp",
+      "cover": "cover.png",
       "html": "index.html",
       "path": "./balatro/",
       "_SN_INFO": null
