@@ -1,111 +1,228 @@
 <!doctype html>
 <html lang="en-us">
   <head>
-    <meta charset="utf-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, minimum-scale=1, maximum-scale=1">
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no, minimum-scale=1, maximum-scale=1"
+    />
     <title>Balatro</title>
 
-    <!-- Load custom style sheet -->
-    <link rel="stylesheet" type="text/css" href="theme/love.css">
+    <link rel="stylesheet" type="text/css" href="love.css" />
   </head>
   <body>
-    <center>
-      <div>
-        <h1>Balatro</h1>
-        <canvas id="loadingCanvas" oncontextmenu="event.preventDefault()" width="800" height="600"></canvas>
-        <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-      </div>
-    </center>
+    <canvas id="loadingCanvas" oncontextmenu="event.preventDefault()"></canvas>
+    <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+    <script type="text/javascript">
+      // The game (via SDL) requests browser fullscreen on the first click. Block it.
+      for (const k of ["requestFullscreen", "webkitRequestFullscreen", "webkitRequestFullScreen", "mozRequestFullScreen", "msRequestFullscreen"]) {
+        if (Element.prototype[k]) Element.prototype[k] = function () { return Promise.resolve(); };
+      }
 
-    <script type='text/javascript'>
-      function goFullScreen(){
-            var canvas = document.getElementById("canvas");
-            if(canvas.requestFullScreen)
-                canvas.requestFullScreen();
-            else if(canvas.webkitRequestFullScreen)
-                canvas.webkitRequestFullScreen();
-            else if(canvas.mozRequestFullScreen)
-                canvas.mozRequestFullScreen();
+      // The game can't be resized after it starts (SDL never reports new sizes
+      // here), so it renders at the window size it started with and the canvas is
+      // scaled with CSS to fit the window, with the mouse mapped back to match.
+      var BUF_W = window.innerWidth, BUF_H = window.innerHeight;
+      [["width", BUF_W], ["height", BUF_H], ["availWidth", BUF_W], ["availHeight", BUF_H]].forEach(function (p) {
+        Object.defineProperty(window.screen, p[0], { get: function () { return p[1]; }, configurable: true });
+      });
+
+      var canvas = document.getElementById("canvas");
+      (function () {
+        var proto = Object.getPrototypeOf(canvas);
+        var w = Object.getOwnPropertyDescriptor(proto, "width");
+        var h = Object.getOwnPropertyDescriptor(proto, "height");
+        function apply() {
+          w.set.call(canvas, BUF_W);
+          h.set.call(canvas, BUF_H);
+        }
+        Object.defineProperty(canvas, "width", { get: function () { return w.get.call(canvas); }, set: apply, configurable: true });
+        Object.defineProperty(canvas, "height", { get: function () { return h.get.call(canvas); }, set: apply, configurable: true });
+        apply();
+      })();
+
+      function fitCanvas() {
+        var s = Math.min(window.innerWidth / BUF_W, window.innerHeight / BUF_H);
+        var cw = Math.floor(BUF_W * s), ch = Math.floor(BUF_H * s);
+        var st = document.documentElement.style;
+        st.setProperty("--cw", cw + "px");
+        st.setProperty("--ch", ch + "px");
+        st.setProperty("--cl", Math.floor((window.innerWidth - cw) / 2) + "px");
+        st.setProperty("--ct", Math.floor((window.innerHeight - ch) / 2) + "px");
       }
-      function FullScreenHook(){
+      fitCanvas();
+      window.addEventListener("resize", fitCanvas);
+
+      ["mousedown", "mouseup", "mousemove"].forEach(function (type) {
+        window.addEventListener(type, function (e) {
+          if (e._remapped) return;
+          e.stopImmediatePropagation();
+          var r = canvas.getBoundingClientRect();
+          var sx = BUF_W / r.width, sy = BUF_H / r.height;
+          var n = new MouseEvent(type, {
+            bubbles: true, cancelable: true, view: window,
+            clientX: r.left + (e.clientX - r.left) * sx,
+            clientY: r.top + (e.clientY - r.top) * sy,
+            screenX: e.screenX, screenY: e.screenY,
+            button: e.button, buttons: e.buttons,
+            ctrlKey: e.ctrlKey, shiftKey: e.shiftKey, altKey: e.altKey, metaKey: e.metaKey,
+            movementX: e.movementX * sx, movementY: e.movementY * sy,
+          });
+          n._remapped = true;
+          (e.target || document).dispatchEvent(n);
+        }, true);
+      });
+
+      [window.WebGLRenderingContext, window.WebGL2RenderingContext].forEach(function (C) {
+        if (!C) return;
+        var origClearColor = C.prototype.clearColor;
+        var origClear = C.prototype.clear;
+        C.prototype.clearColor = function (r, g, b, a) {
+          this._cc = [r, g, b, a];
+          return origClearColor.call(this, r, g, b, a);
+        };
+        C.prototype.clear = function (mask) {
+          var cc = this._cc;
+          if (
+            cc && cc[0] === 0 && cc[1] === 0 && cc[2] === 0 && cc[3] === 1 &&
+            this.getParameter(this.FRAMEBUFFER_BINDING) === null
+          ) {
+            origClearColor.call(this, 0x20 / 255, 0x1c / 255, 0x30 / 255, 1);
+            origClear.call(this, mask);
+            return origClearColor.call(this, 0, 0, 0, 1);
+          }
+          return origClear.call(this, mask);
+        };
+      });
+
+      var lc = document.getElementById("loadingCanvas");
+      lc.width = window.innerWidth;
+      lc.height = window.innerHeight;
+
+      function FullScreenHook() {
         var canvas = document.getElementById("canvas");
-        canvas.width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
-        canvas.height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+        canvas.width =
+          window.innerWidth ||
+          document.documentElement.clientWidth ||
+          document.body.clientWidth;
+        canvas.height =
+          window.innerHeight ||
+          document.documentElement.clientHeight ||
+          document.body.clientHeight;
       }
-      var loadingContext = document.getElementById('loadingCanvas').getContext('2d');
+      var loadingContext = document
+        .getElementById("loadingCanvas")
+        .getContext("2d");
       function drawLoadingText(text) {
         var canvas = loadingContext.canvas;
 
-        loadingContext.fillStyle = "rgb(142, 195, 227)";
+        loadingContext.fillStyle = "#201c30";
         loadingContext.fillRect(0, 0, canvas.scrollWidth, canvas.scrollHeight);
+        loadingContext.fillStyle = "#fff";
 
-        loadingContext.font = '2em arial';
-        loadingContext.textAlign = 'center'
-        loadingContext.fillStyle = "rgb( 11, 86, 117 )";
-        loadingContext.fillText(text, canvas.scrollWidth / 2, canvas.scrollHeight / 2);
+        loadingContext.font = "2em arial";
+        loadingContext.textAlign = "center";
+        loadingContext.fillText(
+          text,
+          canvas.scrollWidth / 2,
+          canvas.scrollHeight / 2,
+        );
 
-        loadingContext.fillText("Powered By Emscripten.", canvas.scrollWidth / 2, canvas.scrollHeight / 4);
-        loadingContext.fillText("Powered By LÖVE.", canvas.scrollWidth / 2, canvas.scrollHeight / 4 * 3);
+        loadingContext.fillText(
+          "Powered By Emscripten.",
+          canvas.scrollWidth / 2,
+          canvas.scrollHeight / 4,
+        );
+        loadingContext.fillText(
+          "Powered By LÖVE.",
+          canvas.scrollWidth / 2,
+          (canvas.scrollHeight / 4) * 3,
+        );
       }
 
-      window.onload = function () { window.focus(); };
-      window.onclick = function () { window.focus(); };
+      window.onload = function () {
+        window.focus();
+      };
+      window.onclick = function () {
+        window.focus();
+      };
 
-      window.addEventListener("keydown", function(e) {
-        // space and arrow keys
-        if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
-          e.preventDefault();
-        }
-      }, false);
+      window.addEventListener(
+        "keydown",
+        function (e) {
+          // space and arrow keys
+          if ([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
+            e.preventDefault();
+          }
+        },
+        false,
+      );
 
       var Module = {
         arguments: ["./"],
         INITIAL_MEMORY: 268435456,
         printErr: console.error.bind(console),
-        canvas: (function() {
-          var canvas = document.getElementById('canvas');
+        canvas: (function () {
+          var canvas = document.getElementById("canvas");
 
           // As a default initial behavior, pop up an alert when webgl context is lost. To make your
           // application robust, you may want to override this behavior before shipping!
           // See http://www.khronos.org/registry/webgl/specs/latest/1.0/#5.15.2
-          canvas.addEventListener("webglcontextlost", function(e) { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
+          canvas.addEventListener(
+            "webglcontextlost",
+            function (e) {
+              alert("WebGL context lost. You will need to reload the page.");
+              e.preventDefault();
+            },
+            false,
+          );
 
           return canvas;
         })(),
-        setStatus: function(text) {
+        setStatus: function (text) {
           if (text) {
             drawLoadingText(text);
           } else if (Module.remainingDependencies === 0) {
-            document.getElementById('loadingCanvas').style.display = 'none';
-            document.getElementById('canvas').style.visibility = 'visible';
+            document.getElementById("loadingCanvas").style.display = "none";
+            document.getElementById("canvas").style.visibility = "visible";
           }
         },
         totalDependencies: 0,
         remainingDependencies: 0,
-        monitorRunDependencies: function(left) {
+        monitorRunDependencies: function (left) {
           this.remainingDependencies = left;
           this.totalDependencies = Math.max(this.totalDependencies, left);
-          Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
-        }
+          Module.setStatus(
+            left
+              ? "Preparing... (" +
+                  (this.totalDependencies - left) +
+                  "/" +
+                  this.totalDependencies +
+                  ")"
+              : "All downloads complete.",
+          );
+        },
       };
-      Module.setStatus('Downloading...');
-      window.onerror = function(event) {
+      Module.setStatus("Downloading...");
+      window.onerror = function (event) {
         // TODO: do not warn on ok events like simulating an infinite loop or exitStatus
-        Module.setStatus('Exception thrown, see JavaScript console');
-        Module.setStatus = function(text) {
-          if (text) Module.printErr('[post-exception status] ' + text);
+        Module.setStatus("Exception thrown, see JavaScript console");
+        Module.setStatus = function (text) {
+          if (text) Module.printErr("[post-exception status] " + text);
         };
       };
 
-      var applicationLoad = function(e) {
+      var applicationLoad = function (e) {
         Love(Module);
-      }
+      };
     </script>
     <script type="text/javascript" src="game.js"></script>
-    <script async type="text/javascript" src="love.js" onload="applicationLoad(this)"></script>
-    <footer>
-      <p>Built with <a href="https://github.com/Davidobot/love.js">love.js</a> <button onclick="goFullScreen();">Go Fullscreen</button><br>Hint: Reload the page if screen is blank</p>
-    </footer>
+    <script
+      async
+      type="text/javascript"
+      src="love.js"
+      onload="applicationLoad(this)"
+    ></script>
   </body>
 </html>
