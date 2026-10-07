@@ -1,6 +1,13 @@
 {
   "games": [
     {
+      "title": "Plants vs. Zombies",
+      "cover": "cover.png",
+      "html": "pvz-portable.html",
+      "path": "./pvz/",
+      "_SN_INFO": null
+    },
+    {
       "title": "Balatro",
       "cover": "cover.png",
       "html": "index.html",

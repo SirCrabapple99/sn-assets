@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PvZ Portable</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden}
+#c{position:fixed;inset:0;display:flex;justify-content:center;align-items:center}
+canvas{display:block;background:#000;outline:0}
+#kb{position:fixed;top:0;left:0;width:1px;height:1px;padding:0;border:0;opacity:0;resize:none;pointer-events:none;font-size:16px}
+</style>
+</head>
+<body>
+<div id="c"><canvas id="canvas" width="800" height="600" tabindex="0"></canvas></div>
+<textarea id="kb" autocapitalize="off" autocomplete="off" autocorrect="off" enterkeyhint="done" spellcheck="false"></textarea>
+<script>
+const FILES = ["main.pak", "properties/partner.xml", "properties/partner.xml.sig", "properties/partner.xml.sig2", "properties/partner_logo.jpg"];
+let ready, fail;
+window.moduleReady = new Promise((a, b) => { ready = a; fail = b; });
+var Module = {
+  canvas: document.getElementById("canvas"),
+  noInitialRun: true,
+  onRuntimeInitialized: () => ready(),
+  onAbort: m => fail(new Error(m)),
+  print: console.log,
+  printErr: console.warn,
+};
+Module.canvas.addEventListener("contextmenu", e => e.preventDefault());
+
+function resize() {
+  const c = Module.canvas, k = Math.min(innerWidth / c.width, innerHeight / c.height);
+  c.style.width = Math.floor(c.width * k) + "px";
+  c.style.height = Math.floor(c.height * k) + "px";
+}
+
+let saves = false, syncing = false;
+function sync(populate) {
+  if (!saves || syncing) return Promise.resolve();
+  syncing = true;
+  return new Promise(r => Module.FS.syncfs(populate, e => { if (e) console.warn(e); syncing = false; r(); }));
+}
+
+function mkdirs(path) {
+  const p = path.split("/").slice(0, -1);
+  let d = "";
+  for (const s of p) { d += "/" + s; try { Module.FS.mkdir(d); } catch (e) {} }
+}
+
+async function start() {
+  await window.moduleReady;
+  await Promise.all(FILES.map(async f => {
+    const r = await fetch("./game_files/" + f);
+    if (!r.ok) throw new Error("Missing game_files/" + f);
+    const data = new Uint8Array(await r.arrayBuffer());
+    mkdirs(f);
+    Module.FS.writeFile("/" + f, data);
+  }));
+  try { Module.FS.mkdir("/saves"); } catch (e) {}
+  try { Module.FS.mount(Module.FS.filesystems.IDBFS, {}, "/saves"); } catch (e) {}
+  saves = true;
+  syncing = false;
+  await new Promise(r => Module.FS.syncfs(true, e => { if (e) console.warn(e); r(); }));
+  resize();
+  addEventListener("resize", resize);
+  setInterval(() => sync(false), 5000);
+  Module.callMain([]);
+}
+
+document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && sync(false));
+addEventListener("pagehide", () => sync(false));
+window.onGameExit = () => { document.exitFullscreen?.().catch(() => {}); location.reload(); };
+
+start().catch(e => console.error("Failed to start:", e));
+</script>
+<script src="pvz-portable.js" async></script>
+</body>
+</html>
